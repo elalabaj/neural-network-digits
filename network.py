@@ -71,13 +71,14 @@ class Network:
         nabla_b = [np.zeros_like(b) for b in self.biases]
         
         error = self.cost_derivative(activations[-1], y) * sigmoid_derivative(z_values[-1])
-        nabla_w[-1] = activations[-2] @ error
+                
+        nabla_w[-1] =  error @ activations[-2].T
         nabla_b[-1] = error.copy()
 
         for i in range(2, self.num_layers):
             l = -i
             error = (self.weights[l+1].T @ error) * sigmoid_derivative(z_values[l])
-            nabla_w[l] = activations[l-1] @ error
+            nabla_w[l] = error @ activations[l-1].T
             nabla_b[l] = error.copy()
 
         return (nabla_w, nabla_b)
