@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import numpy as np
 import pickle
 
@@ -10,23 +10,87 @@ class Network:
         self.biases = [np.random.randn(j, 1) for j in layer_sizes[1:]]
 
     def save(self, filename = 'network.pkl'):
-        # np.savez(filename, weights = self.weights, biases = self.biases, allow_pickle=True)
         with open(filename, 'wb') as f:
             pickle.dump((self.weights, self.biases), f)
 
     def load(self, filename = 'network.pkl'):
-        # data = np.load(filename, allow_pickle=True)
-        # self.weights = data['weights']
-        # self.biases = data['biases']
         with open(filename, 'rb') as f:
             self.weights, self.biases = pickle.load(f)
 
-    # returns the output of a network, when a are the activations in the first layer
-    def feedforward(self, a: np.ndarray) -> np.ndarray:
+    # returns the activations and raw activations of the network
+    def feedforward(self, x: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        activations = [x.copy()]
+        z_values = []
         for w, b in zip(self.weights, self.biases):
-            a = sigmoid(w @ a + b)
-        return a
+            z = w @ activations[-1] + b
+            a = sigmoid(z)
+            activations.append(a.copy())
+            z_values.append(z.copy())
+        return (activations, z_values)
+    
+    def train(self, train_x: np.ndarray, train_y: np.ndarray, test_x: np.ndarray, test_y: np.ndarray, num_epochs: int = 10):
+        for i in range(num_epochs):
+            self.gradient_descent(train_x, train_y)
+            correct = 0
+            for j in range(len(test_x)):
+                output = self.feedforward(test_x[j])[0][-1]
+                if np.argmax(output) == np.argmax(test_y[j]):
+                    correct += 1
+            accuracy = correct / len(test_x)
+            print(f"Epoch #{i} accuracy: {accuracy:.4f}")
+
+    # stochastic gradient descent algorithm, x - inputs array, y - expected outputs array
+    def gradient_descent(self, x: np.ndarray, y: np.ndarray, minibatch_size: int = 10, learning_rate: float = 0.1):
+        n = len(x)
+
+        indices = np.arange(n)
+        np.random.shuffle(indices)
+        x = x[indices]
+        y = y[indices]
+
+        for i in range(n // minibatch_size):
+            nabla_w = [np.zeros_like(w) for w in self.weights]
+            nabla_b = [np.zeros_like(b) for b in self.biases]
+
+            for j in range(i * minibatch_size, (i+1) * minibatch_size):
+                nabla_w_prime, nabla_b_prime = self.backpropagation(x[j], y[j])
+
+                for k in range(len(nabla_w)):
+                    nabla_w[k] += nabla_w_prime[k]
+                    nabla_b[k] += nabla_b_prime[k]
+        
+            for k in range(len(nabla_w)):
+                self.weights[k] -= (learning_rate / minibatch_size) * nabla_w[k]
+                self.biases[k] -= (learning_rate / minibatch_size) * nabla_b[k]
+        
+    # calculate pratial derivatives of the cost function
+    # in respect to all the weights and biases
+    def backpropagation(self, x: np.ndarray, y: np.ndarray):
+        activations, z_values = self.feedforward(x)
+        nabla_w = [np.zeros_like(w) for w in self.weights]
+        nabla_b = [np.zeros_like(b) for b in self.biases]
+        
+        error = self.cost_derivative(activations[-1], y) * sigmoid_derivative(z_values[-1])
+        nabla_w[-1] = activations[-2] @ error
+        nabla_b[-1] = error.copy()
+
+        for i in range(2, self.num_layers):
+            l = -i
+            error = (self.weights[l+1].T @ error) * sigmoid_derivative(z_values[l])
+            nabla_w[l] = activations[l-1] @ error
+            nabla_b[l] = error.copy()
+
+        return (nabla_w, nabla_b)
+
+    def cost(self, a_last: np.ndarray, y: np.ndarray) -> float:
+        return 0.5 * sum((a_last - y) ** 2)
+    
+    def cost_derivative(self, a_last: np.ndarray, y: np.ndarray) -> np.ndarray:
+        return a_last - y
     
 
 def sigmoid(x: float) -> float:
     return 1.0 / (1.0 + np.exp(-x))
+
+def sigmoid_derivative(x: float) -> float:
+    return sigmoid(x) * (1.0 - sigmoid(x))
