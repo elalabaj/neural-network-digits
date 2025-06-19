@@ -28,16 +28,20 @@ class Network:
             z_values.append(z.copy())
         return (activations, z_values)
     
-    def train(self, train_x: np.ndarray, train_y: np.ndarray, test_x: np.ndarray, test_y: np.ndarray, num_epochs: int = 10):
+    def train(self, train_x: np.ndarray, train_y: np.ndarray, test_x: np.ndarray, test_y: np.ndarray, num_epochs: int = 10, learning_rate: float = 0.01):
         for i in range(num_epochs):
-            self.gradient_descent(train_x, train_y)
-            correct = 0
-            for j in range(len(test_x)):
-                output = self.feedforward(test_x[j])[0][-1]
-                if np.argmax(output) == np.argmax(test_y[j]):
-                    correct += 1
-            accuracy = correct / len(test_x)
-            print(f"Epoch #{i} accuracy: {accuracy:.4f}")
+            self.gradient_descent(train_x, train_y, learning_rate=learning_rate)
+            print(f"Epoch #{i}: ", end='')
+            self.test(test_x, test_y)
+
+    def test(self, test_x: np.ndarray, test_y: np.ndarray):
+        correct = 0
+        for j in range(len(test_x)):
+            output = self.feedforward(test_x[j])[0][-1]
+            if np.argmax(output) == np.argmax(test_y[j]):
+                correct += 1
+        accuracy = correct / len(test_x)
+        print(f"Accuracy: {accuracy:.4f}")
 
     # stochastic gradient descent algorithm, x - inputs array, y - expected outputs array
     def gradient_descent(self, x: np.ndarray, y: np.ndarray, minibatch_size: int = 10, learning_rate: float = 0.1):
